@@ -1,0 +1,9 @@
+{% extends 'record_template.html' %}
+{% set title = 'Barangay Clearance' %}
+{% set route_name = 'clearance' %}
+{% set fields = [{'name':'name','placeholder':'Name','type':'text','col':'col-md-6','required':True}, {'name':'address','placeholder':'Address','type':'text','col':'col-md-6'},{'name':'birthday','placeholder':'Birthday','type':'date','col':'col-md-3'},{'name':'birthplace','placeholder':'Birthplace','type':'text','col':'col-md-3'},{'name':'gender','placeholder':'Gender','type':'text','col':'col-md-2'},{'name':'civil_status','placeholder':'Civil Status','type':'text','col':'col-md-2'},{'name':'date_issued','placeholder':'Date Issued','type':'date','col':'col-md-3'},{'name':'purpose','placeholder':'Purpose','type':'text','col':'col-md-6'}] %}
+{% set headers = ['#','Name','Address','Birthday','Purpose','Date_Issued','Status'] %}
+{% set month = request.args.get('month','') %}
+{% set year = request.args.get('year','') %}
+{% set q = request.args.get('q','') %}
+

@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>All Records - {{ rtype }}</h3>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-4"><input name="q" value="{{ q }}" placeholder="Search" class="form-control"></div>
+  <div class="col-md-2"><input name="month" value="{{ month }}" placeholder="MM" class="form-control"></div>
+  <div class="col-md-2"><input name="year" value="{{ year }}" placeholder="YYYY" class="form-control"></div>
+  <div class="col-md-2"><button class="btn btn-primary">Search</button></div>
+</form>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      {% if records and records|length > 0 %}
+        {% for c in records[0].__table__.columns %}<th>{{ c.name }}</th>{% endfor %}
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in records %}
+      <tr>
+        {% for c in r.__table__.columns %}
+          <td>{{ getattr(r, c.name) }}</td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'record_template.html' %}
+{% set title = 'Barangay ID Records' %}
+{% set route_name = 'barangay_id' %}
+{% set fields = [
+    {'name':'name','placeholder':'Name','type':'text','col':'col-md-6','required':True},
+    {'name':'address','placeholder':'Address','type':'text','col':'col-md-6'},
+    {'name':'registered_voter','placeholder':'Registered Voter (Yes/No)','type':'text','col':'col-md-3'},
+    {'name':'nonreg_proof','placeholder':'Proof if non-registered','type':'text','col':'col-md-3'},
+    {'name':'birthday','placeholder':'Birthday','type':'date','col':'col-md-3'},
+    {'name':'date_issued','placeholder':'Date Issued','type':'date','col':'col-md-3'},
+    {'name':'purpose','placeholder':'Purpose','type':'text','col':'col-md-6'}
+] %}
+{% set headers = ['#','Name','Address','Registered_Voter','Birthday','Purpose','Date_Issued'] %}
+{% set month = request.args.get('month','') %}
+{% set year = request.args.get('year','') %}
+{% set q = request.args.get('q','') %}

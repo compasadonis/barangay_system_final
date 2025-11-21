@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Print {{ title }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h3 {
+            margin-bottom: 15px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 6px 8px;
+        }
+        th {
+            background: #eee;
+        }
+
+        @media print {
+            body { margin: 0; }
+        }
+    </style>
+
+</head>
+<body>
+
+<h3>{{ title }} — Month: {{ month or 'All' }} | Year: {{ year or 'All' }}</h3>
+
+{% if records and records|length > 0 %}
+<table>
+    <thead>
+        <tr>
+            {% for col_name in records[0].keys() %}
+                <th>{{ col_name.replace('_', ' ').title() }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in records %}
+        <tr>
+            {% for value in r.values() %}
+                <td>{{ value }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No records found.</p>
+{% endif %}
+
+<script>
+    window.print();
+</script>
+
+</body>
+</html>

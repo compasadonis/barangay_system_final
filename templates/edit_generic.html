@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="container mt-4">
+    <h3 class="text-center mb-4">Edit {{ rtype|capitalize }} Record</h3>
+
+    <form method="POST">
+        <div class="row">
+            {% for key, value in record.items() %}
+                
+                {% if key != 'id' %}
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">{{ key.replace('_', ' ').title() }}</label>
+
+                    {# If date field #}
+                    {% if 'date' in key.lower() %}
+                        <input type="date" 
+                               name="{{ key }}" 
+                               class="form-control"
+                               value="{{ value }}">
+                    
+                    {# If normal text #}
+                    {% else %}
+                        <input type="text" 
+                               name="{{ key }}" 
+                               class="form-control"
+                               value="{{ value }}">
+                    {% endif %}
+                </div>
+                {% endif %}
+
+            {% endfor %}
+        </div>
+
+        <button class="btn btn-primary mt-3">Save Changes</button>
+        <a href="{{ url_for('view_' + rtype) }}" class="btn btn-secondary mt-3">Cancel</a>
+    </form>
+</div>
+
+{% endblock %}
