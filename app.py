@@ -31,31 +31,42 @@ def model_headers(Model):
 
 
 def make_fields_from_model(Model):
-    """
-    Returns a list of field descriptors suitable for the Add form.
-    Each descriptor: {name, type, placeholder, required, col}
-    type: 'text'|'date'|'number' (template also supports 'select' if you want)
-    """
     fields = []
     for c in model_columns(Model):
         if c.name == "id":
             continue
-        # determine input type
+
         if column_is_date(c):
             itype = "date"
+            default = datetime.utcnow().date().isoformat()
         elif column_is_numeric(c):
             itype = "number"
+            default = ""
         else:
             itype = "text"
+            default = ""
+
+        # Dropdowns
+        options = None
+        if c.name == "gender":  # display as Gender
+            itype = "select"
+            options = ["Male", "Female", "Other"]
+        elif c.name == "civil_status":
+            itype = "select"
+            options = ["Single", "Married", "Widowed", "Divorced", "Separated"]
+        elif c.name == "years_of_residency":
+            itype = "select"
+            options = [str(i) for i in range(1, 51)]
 
         fd = {
             "name": c.name,
             "type": itype,
             "placeholder": c.name.replace("_", " ").title(),
-            "required": not c.nullable and not c.default,  # simple heuristic
-            "col": "col-md-4"  # default layout; adjust if needed
+            "required": not c.nullable and not c.default,
+            "col": "col-md-4",
+            "options": options,
+            "default": default
         }
-        # You can add select/options logic here for specific fields (status, gender, etc.)
         fields.append(fd)
     return fields
 
@@ -162,23 +173,45 @@ def create_app():
 
         endpoint_name = f"view_{prefix}"
 
+        # ---------------------------
+        # MAIN VIEW FUNCTION
+        # ---------------------------
         def view_func():
-            # CREATE
+
+            # ============================================
+            # CREATE RECORD
+            # ============================================
             if request.method == "POST":
+
+                # Required field validation (blank check)
+                required_fields = [c.name for c in Model.__table__.columns if not c.nullable and c.name != "id"]
+                for rf in required_fields:
+                    if not request.form.get(rf):
+                        flash(f"'{rf.replace('_',' ').title()}' is required!", "danger")
+                        return redirect(request.url)
+
+                # Duplicate name check
+                name = request.form.get("name")
+                if name:
+                    existing = Model.query.filter_by(name=name).first()
+                    if existing:
+                        flash("This person already exists in the records!", "danger")
+                        return redirect(request.url)
+
+                # Continue saving
                 obj = Model()
                 data = request.form.to_dict()
 
                 for col in Model.__table__.columns:
-                    name = col.name
-                    if name == "id":
+                    colname = col.name
+                    if colname == "id":
                         continue
 
-                    val = data.get(name)
+                    val = data.get(colname)
 
                     # Date parser
                     if val and column_is_date(col):
                         try:
-                            # allow both date and datetime strings
                             val = datetime.strptime(val, "%Y-%m-%d").date()
                         except:
                             try:
@@ -186,7 +219,7 @@ def create_app():
                             except:
                                 val = None
 
-                    # Try numeric conversion for numeric columns
+                    # Numeric parser
                     if val and column_is_numeric(col):
                         try:
                             if col.type.__class__.__name__.lower() in ("integer", "bigint", "smallint"):
@@ -196,9 +229,9 @@ def create_app():
                         except:
                             pass
 
-                    setattr(obj, name, val)
+                    setattr(obj, colname, val)
 
-                # Default status
+                # Default Status
                 if hasattr(obj, "status") and not obj.status:
                     obj.status = "Valid"
 
@@ -207,26 +240,26 @@ def create_app():
                 flash(f"{title} created!", "success")
                 return redirect(request.url)
 
+            # ============================================
             # LIST / SEARCH
+            # ============================================
             q = request.args.get("q", "").strip()
             month = request.args.get("month", "")
             year = request.args.get("year", "")
 
             qry = Model.query
 
-            # Text search - only on textual columns
+            # Text search
             if q:
                 like = f"%{q}%"
-                # Build list of instrumented attributes for ilike
                 text_cols = []
                 for c in Model.__table__.columns:
-                    # treat varchar/text-like columns as searchable
                     if hasattr(c.type, "length") or c.type.__class__.__name__.lower() in ("text", "varchar", "string"):
                         text_cols.append(getattr(Model, c.name))
                 if text_cols:
                     qry = qry.filter(or_(*[col.ilike(like) for col in text_cols]))
 
-            # Month-Year filter (only if model actually has the column)
+            # Date filters
             if month and year and "date_issued" in Model.__table__.columns.keys():
                 qry = qry.filter(
                     db.func.strftime("%m", Model.date_issued) == f"{int(month):02d}",
@@ -235,7 +268,7 @@ def create_app():
 
             records_orm = qry.order_by(Model.id.desc()).all()
 
-            # AUTO STATUS UPDATE (mutates ORM instances; commit after changes optional but not needed for view)
+            # Status auto-update
             today = datetime.utcnow().date()
             for r in records_orm:
                 if hasattr(r, "date_issued") and r.date_issued:
@@ -243,25 +276,26 @@ def create_app():
                     expiry = r.date_issued + timedelta(days=30 * months)
                     if hasattr(r, "status"):
                         r.status = "Expired" if today > expiry else "Valid"
-            # Note: not committing here to avoid unintended writes every view render
 
-            # Convert ORM objects to list of dicts for templates
+            # Convert to dict
             records = [row_to_dict(r, Model) for r in records_orm]
 
-            # prepare headers and fields for template
             headers = model_headers(Model)
             fields = make_fields_from_model(Model)
 
-            return render_template(template,
-                                   title=title,
-                                   records=records,
-                                   q=q,
-                                   month=month,
-                                   year=year,
-                                   route_name=prefix,
-                                   headers=headers,
-                                   fields=fields)
+            return render_template(
+                template,
+                title=title,
+                records=records,
+                q=q,
+                month=month,
+                year=year,
+                route_name=prefix,
+                headers=headers,
+                fields=fields
+            )
 
+        # REGISTER URL (IMPORTANT: NO 'app =' HERE)
         app.add_url_rule(
             f"/{prefix}",
             endpoint=endpoint_name,
@@ -393,11 +427,22 @@ def create_app():
             )
 
         records_orm = qry.order_by(Model.id.asc()).all()
+
+        # compute status
+        today = datetime.utcnow().date()
+        for r in records_orm:
+            if hasattr(r, "date_issued") and r.date_issued:
+                months = 12 if "business" in (getattr(r, "purpose", "") or "").lower() else 6
+                expiry = r.date_issued + timedelta(days=30 * months)
+                if hasattr(r, "status"):
+                    r.status = "Expired" if today > expiry else "Valid"
+
         records = [row_to_dict(r, Model) for r in records_orm]
 
         # CSV EXPORT
         if request.args.get("export") == "csv":
-            si = csv.StringIO()
+            import csv, io
+            si = io.StringIO()
             writer = csv.writer(si)
             cols = [c.name for c in Model.__table__.columns]
             writer.writerow(cols)
@@ -405,7 +450,6 @@ def create_app():
                 row_vals = []
                 for c in cols:
                     v = r.get(c)
-                    # format date to ISO string
                     if isinstance(v, (datetime,)):
                         row_vals.append(v.date().isoformat())
                     else:
@@ -423,6 +467,7 @@ def create_app():
                                month=month,
                                year=year)
 
+    # Return the app instance
     return app
 
 

@@ -1,16 +1,163 @@
 {% extends 'record_template.html' %}
 {% set title = 'Barangay ID Records' %}
 {% set route_name = 'barangay_id' %}
+
 {% set fields = [
-    {'name':'name','placeholder':'Name','type':'text','col':'col-md-6','required':True},
+    {'name':'name','placeholder':'Name','type':'text','col':'col-md-4','required':True},
+    {'name':'gender','placeholder':'Gender','type':'select','options':['Male','Female','Other'],'col':'col-md-2','required':True},
+    {'name':'phone_number','placeholder':'Phone Number','type':'text','col':'col-md-3'},
     {'name':'address','placeholder':'Address','type':'text','col':'col-md-6'},
-    {'name':'registered_voter','placeholder':'Registered Voter (Yes/No)','type':'text','col':'col-md-3'},
+
+    {'name':'registered_voter','placeholder':'Registered Voter','type':'select','options':['Yes','No'],'col':'col-md-3','required':True},
     {'name':'nonreg_proof','placeholder':'Proof if non-registered','type':'text','col':'col-md-3'},
+
     {'name':'birthday','placeholder':'Birthday','type':'date','col':'col-md-3'},
-    {'name':'date_issued','placeholder':'Date Issued','type':'date','col':'col-md-3'},
+    {'name':'date_issued','placeholder':'Date Issued','type':'date','col':'col-md-3','required':True},
     {'name':'purpose','placeholder':'Purpose','type':'text','col':'col-md-6'}
 ] %}
-{% set headers = ['#','Name','Address','Registered_Voter','Birthday','Purpose','Date_Issued'] %}
-{% set month = request.args.get('month','') %}
-{% set year = request.args.get('year','') %}
+
 {% set q = request.args.get('q','') %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <!-- SEARCH ONLY -->
+    <div class="card mb-4">
+        <div class="card-header"><h5 class="mb-0">Search</h5></div>
+        <div class="card-body">
+            <form method="GET">
+                <div class="row">
+                    <div class="col-md-6">
+                        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search by Name...">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                        <a href="{{ url_for('view_' + route_name) }}" class="btn btn-secondary">Clear</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD BUTTON -->
+    <div class="text-end mb-3">
+        <button class="btn btn-primary" id="toggleAddForm">+ Add Record</button>
+    </div>
+
+    <!-- ADD FORM -->
+    <div class="card mb-4" id="addRecordForm" style="display:none;">
+        <div class="card-header"><h5 class="mb-0">Add New Record</h5></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_record', rtype=route_name) }}">
+                <div class="row">
+
+                    {% for field in fields %}
+                        <div class="{{ field.col }} mb-3" id="{{ field.name }}Div">
+                            <label class="form-label">{{ field.name|replace('_',' ')|title }}</label>
+
+                            {% if field.type == 'select' %}
+                                <select name="{{ field.name }}" id="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}>
+                                    <option value="">Select {{ field.name|replace('_',' ') }}</option>
+                                    {% for option in field.options %}
+                                        <option value="{{ option }}">{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% else %}
+                                <input type="{{ field.type }}" name="{{ field.name }}" id="{{ field.name }}" class="form-control" placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                </div>
+                <button type="submit" class="btn btn-success">Add Record</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card">
+        <div class="card-header"><h5 class="mb-0">Records List</h5></div>
+        <div class="card-body">
+
+            {% if records %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            {% for f in fields %}
+                                <th>{{ f.name.replace('_',' ')|title }}</th>
+                            {% endfor %}
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for r in records %}
+                        <tr>
+                            {% for f in fields %}
+                                <td>{{ r[f.name] }}</td>
+                            {% endfor %}
+
+                            <td>
+                                {% if r.status %}
+                                    <span class="badge bg-{{ 'danger' if r.status=='Expired' else 'success' }}">{{ r.status }}</span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <a href="{{ url_for('edit_record', rtype=route_name, id=r['id']) }}" class="btn btn-sm btn-warning">Edit</a>
+
+                                <form action="{{ url_for('delete_record', rtype=route_name, id=r['id']) }}" method="POST" style="display:inline;">
+                                    <button class="btn btn-sm btn-danger" onclick="return confirm('Delete record?')">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+            {% else %}
+                <div class="alert alert-info">No records found.</div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Toggle Add Form
+    document.getElementById("toggleAddForm").addEventListener("click", function() {
+        const form = document.getElementById("addRecordForm");
+        form.style.display = form.style.display === "none" ? "block" : "none";
+        this.innerText = form.style.display === "none" ? "+ Add Record" : "− Hide Form";
+    });
+
+    // Logic for non-registered proof
+    document.addEventListener('DOMContentLoaded', function() {
+        const regSelect = document.getElementById('registered_voter');
+        const proofDiv = document.getElementById('nonreg_proofDiv');
+        const proofInput = document.getElementById('nonreg_proof');
+
+        function toggleProof() {
+            if (regSelect.value === 'Yes') {
+                proofInput.value = 'N/A';
+                proofDiv.style.display = 'none';
+            } else {
+                proofInput.value = '';
+                proofDiv.style.display = 'block';
+            }
+        }
+
+        toggleProof();
+        regSelect.addEventListener('change', toggleProof);
+    });
+</script>
+
+{% endblock %}
+        

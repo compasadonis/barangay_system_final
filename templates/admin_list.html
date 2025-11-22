@@ -1,28 +1,56 @@
 {% extends 'base.html' %}
 {% block content %}
-<h3>All Records - {{ rtype }}</h3>
-<form class="row g-2 mb-3" method="get">
-  <div class="col-md-4"><input name="q" value="{{ q }}" placeholder="Search" class="form-control"></div>
-  <div class="col-md-2"><input name="month" value="{{ month }}" placeholder="MM" class="form-control"></div>
-  <div class="col-md-2"><input name="year" value="{{ year }}" placeholder="YYYY" class="form-control"></div>
-  <div class="col-md-2"><button class="btn btn-primary">Search</button></div>
+
+<h3 class="fw-bold mb-4 text-dark">All Records - {{ rtype|title }}</h3>
+
+<!-- SEARCH BAR -->
+<form class="row g-3 mb-4" method="get" style="background:white; padding:20px; border-radius:16px; box-shadow:0 6px 14px rgba(0,0,0,0.06);">
+  <div class="col-md-5">
+    <input name="q" value="{{ q }}" placeholder="Search..." 
+           class="form-control rounded-pill shadow-sm px-3" 
+           style="border:2px solid #0a66ff;">
+  </div>
+
+  <div class="col-md-2">
+    <input name="month" value="{{ month }}" placeholder="MM"
+           class="form-control rounded-pill shadow-sm px-3">
+  </div>
+
+  <div class="col-md-2">
+    <input name="year" value="{{ year }}" placeholder="YYYY" 
+           class="form-control rounded-pill shadow-sm px-3">
+  </div>
+
+  <div class="col-md-3 d-grid">
+    <button class="btn btn-primary rounded-pill py-2">Search</button>
+  </div>
 </form>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      {% if records and records|length > 0 %}
-        {% for c in records[0].__table__.columns %}<th>{{ c.name }}</th>{% endfor %}
-      {% endif %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in records %}
-      <tr>
-        {% for c in r.__table__.columns %}
-          <td>{{ getattr(r, c.name) }}</td>
+
+<!-- TABLE -->
+<div class="card shadow-sm border-0 p-3" style="border-radius:18px;">
+  <div class="table-responsive">
+    <table class="table table-bordered" style="border-radius:18px; overflow:hidden;">
+      <thead class="text-white" style="background:#0a66ff;">
+        <tr>
+          {% if records and records|length > 0 %}
+            {% for c in records[0].__table__.columns %}
+              <th class="text-center py-3">{{ c.name.replace('_',' ')|title }}</th>
+            {% endfor %}
+          {% endif %}
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for r in records %}
+          <tr>
+            {% for c in r.__table__.columns %}
+              <td class="py-2 text-center">{{ getattr(r, c.name) }}</td>
+            {% endfor %}
+          </tr>
         {% endfor %}
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 {% endblock %}

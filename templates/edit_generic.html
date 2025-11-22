@@ -6,33 +6,31 @@
 
     <form method="POST">
         <div class="row">
-            {% for key, value in record.items() %}
-                
-                {% if key != 'id' %}
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">{{ key.replace('_', ' ').title() }}</label>
+            {% for field in fields %}
+                {% if field.name != 'id' and field.name != 'status' %}
+                <div class="{{ field.col }} mb-3">
+                    <label class="form-label">{{ field.name.replace('_', ' ')|title }}</label>
 
-                    {# If date field #}
-                    {% if 'date' in key.lower() %}
-                        <input type="date" 
-                               name="{{ key }}" 
-                               class="form-control"
-                               value="{{ value }}">
-                    
-                    {# If normal text #}
+                    {% if field.type == 'select' %}
+                        <select name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}>
+                            <option value="">Select {{ field.name.replace('_',' ')|title }}</option>
+                            {% for option in field.options %}
+                                <option value="{{ option }}" {% if record[field.name] == option %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
                     {% else %}
-                        <input type="text" 
-                               name="{{ key }}" 
+                        <input type="{{ field.type }}" 
+                               name="{{ field.name }}" 
                                class="form-control"
-                               value="{{ value }}">
+                               value="{{ record[field.name] }}" 
+                               {% if field.required %}required{% endif %}>
                     {% endif %}
                 </div>
                 {% endif %}
-
             {% endfor %}
         </div>
 
-        <button class="btn btn-primary mt-3">Save Changes</button>
+        <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
         <a href="{{ url_for('view_' + rtype) }}" class="btn btn-secondary mt-3">Cancel</a>
     </form>
 </div>

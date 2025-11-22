@@ -1,6 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import date
+
 db = SQLAlchemy()
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -8,53 +10,63 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'admin' or 'staff'
 
+
 class BarangayID(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
-    registered_voter = db.Column(db.String(5))  # Yes/No
+    phone_number = db.Column(db.String(50))            # ✅ ADDED
+    gender = db.Column(db.String(20))                  # ✅ ADDED
+    registered_voter = db.Column(db.String(5))         # Yes/No
     nonreg_proof = db.Column(db.String(300))
     birthday = db.Column(db.Date)
     purpose = db.Column(db.String(300))
     status = db.Column(db.String(50))
     date_issued = db.Column(db.Date)
 
+
 class Clearance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
+    phone_number = db.Column(db.String(50))            # ✅ ADDED
     birthday = db.Column(db.Date)
     birthplace = db.Column(db.String(200))
     gender = db.Column(db.String(20))
     civil_status = db.Column(db.String(50))
     purpose = db.Column(db.String(300))
-    date_issued = db.Column(db.Date)
     status = db.Column(db.String(50))
+    date_issued = db.Column(db.Date)
+
 
 class Indigency(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
+    gender = db.Column(db.String(20))                  # ✅ ADDED
     purpose = db.Column(db.String(300))
     status = db.Column(db.String(50))
     date_issued = db.Column(db.Date)
+
 
 class GoodMoral(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
     date_of_birth = db.Column(db.Date)
-    sex = db.Column(db.String(20))
+    gender = db.Column(db.String(20))
     civil_status = db.Column(db.String(50))
-    yrs_of_residency = db.Column(db.Integer)
+    length_of_residency = db.Column(db.Integer)
     purpose = db.Column(db.String(300))
     status = db.Column(db.String(50))
     date_issued = db.Column(db.Date)
+
 
 class FirstJobSeeker(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
     date_of_birth = db.Column(db.Date)
-    yrs_of_residency = db.Column(db.Integer)
+    gender = db.Column(db.String(20))                  # ✅ ADDED
+    length_of_residency = db.Column(db.Integer)
     date_issued = db.Column(db.Date)

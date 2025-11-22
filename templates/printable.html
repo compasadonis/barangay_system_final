@@ -8,22 +8,36 @@
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
+            text-align: center;
+            font-size: 16px;
         }
         h3 {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        p.print-date {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #555;
         }
         table {
             border-collapse: collapse;
-            width: 100%;
-            font-size: 14px;
+            width: 90%;
+            margin: 0 auto;
+            font-size: 16px;
+            page-break-inside: auto;
         }
         th, td {
             border: 1px solid #444;
-            padding: 6px 8px;
+            padding: 8px 10px;
         }
         th {
             background: #eee;
         }
+        thead { display: table-header-group; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
+        .page-break { page-break-after: always; }
 
         @media print {
             body { margin: 0; }
@@ -33,32 +47,79 @@
 </head>
 <body>
 
-<h3>{{ title }} — Month: {{ month or 'All' }} | Year: {{ year or 'All' }}</h3>
+<h3>
+    {{ title }}
+    {% if month %} — Month: {{ month }}{% endif %}
+    {% if year %} | Year: {{ year }}{% endif %}
+</h3>
+
+<p class="print-date">Printed on: <span id="printDate"></span></p>
+
+{% set months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
 
 {% if records and records|length > 0 %}
-<table>
-    <thead>
-        <tr>
-            {% for col_name in records[0].keys() %}
-                <th>{{ col_name.replace('_', ' ').title() }}</th>
-            {% endfor %}
-        </tr>
-    </thead>
-    <tbody>
+    {% set counter = 0 %}
+    <table>
+        <thead>
+            <tr>
+                {% for key in records[0].keys() if key != 'status' %}
+                    <th>{{ key.replace('_', ' ').title() }}</th>
+                {% endfor %}
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
         {% for r in records %}
-        <tr>
-            {% for value in r.values() %}
-                <td>{{ value }}</td>
-            {% endfor %}
-        </tr>
+            <tr>
+                {% for key, value in r.items() if key != 'status' %}
+                    <td>
+                        {% if value is string and value|length == 10 and value[4] == '-' and value[7] == '-' %}
+                            {% set y = value[0:4] %}
+                            {% set m = value[5:7]|int %}
+                            {% set d = value[8:10]|int %}
+                            {{ months[m-1] }} {{ d }}, {{ y }}
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </td>
+                {% endfor %}
+                <td>
+                    {% if r.status == "Expired" %}
+                        <span style="color:red;font-weight:bold;">Expired</span>
+                    {% else %}
+                        <span style="color:green;font-weight:bold;">Valid</span>
+                    {% endif %}
+                </td>
+            </tr>
+
+            {% set counter = counter + 1 %}
+            {% if counter % 15 == 0 %}
+                </tbody>
+            </table>
+            <div class="page-break"></div>
+            <table>
+                <thead>
+                    <tr>
+                        {% for key in records[0].keys() if key != 'status' %}
+                            <th>{{ key.replace('_', ' ').title() }}</th>
+                        {% endfor %}
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+            {% endif %}
         {% endfor %}
-    </tbody>
-</table>
+        </tbody>
+    </table>
 {% else %}
-<p>No records found.</p>
+    <p>No records found.</p>
 {% endif %}
 
 <script>
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    document.getElementById('printDate').textContent =
+        new Date().toLocaleDateString('en-US', options);
+
     window.print();
 </script>
 

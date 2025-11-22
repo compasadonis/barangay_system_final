@@ -1,8 +1,22 @@
 {% extends 'record_template.html' %}
 {% set title = 'First Time Job Seeker' %}
 {% set route_name = 'firstjob' %}
-{% set fields = [{'name':'name','placeholder':'Name','type':'text','col':'col-md-6','required':True}, {'name':'address','placeholder':'Address','type':'text','col':'col-md-6'},{'name':'date_of_birth','placeholder':'Date of Birth','type':'date','col':'col-md-4'},{'name':'yrs_of_residency','placeholder':'Years of Residency','type':'text','col':'col-md-2'},{'name':'date_issued','placeholder':'Date Issued','type':'date','col':'col-md-4'}] %}
-{% set headers = ['#','Name','Address','DOB','Residency','Date_Issued'] %}
+
+{% set fields = [
+    {'name':'name','placeholder':'Name','type':'text','col':'col-md-4','required':True},
+    {'name':'gender','placeholder':'Gender','type':'select','col':'col-md-2',
+        'options':['Male','Female','Other']},
+
+    {'name':'address','placeholder':'Address','type':'text','col':'col-md-6'},
+
+    {'name':'date_of_birth','placeholder':'Date of Birth','type':'date','col':'col-md-4'},
+
+    {'name':'length_of_residency','placeholder':'Length of Residency (Years)',
+        'type':'number','col':'col-md-3'},
+
+    {'name':'date_issued','placeholder':'Date Issued','type':'date','col':'col-md-3'}
+] %}
+
+{% set q = request.args.get('q','') %}
 {% set month = request.args.get('month','') %}
 {% set year = request.args.get('year','') %}
-{% set q = request.args.get('q','') %}

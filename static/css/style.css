@@ -1,4 +1,105 @@
-body { padding-top: 70px; }
-.navbar-brand { font-weight: 700; }
-.container { max-width: 1100px; }
-.card-compact { border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+/* Global Reset + Modern Look */
+body {
+    padding-top: 80px;
+    background: #f5f7fa;
+    font-family: 'Inter', sans-serif;
+    color: #2d2d2d;
+}
+
+/* Navbar */
+.navbar {
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    padding: 15px 0;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: #2d5be3 !important;
+    letter-spacing: -0.5px;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+}
+
+/* Modern Card Styling */
+.card-compact {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    transition: 0.25s ease;
+    border: none;
+}
+
+.card-compact:hover {
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.08);
+    transform: translateY(-3px);
+}
+
+/* Buttons */
+.btn {
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    padding: 10px 18px !important;
+}
+
+.btn-primary {
+    background: #2d5be3 !important;
+    border: none !important;
+}
+
+.btn-primary:hover {
+    background: #1b45c2 !important;
+}
+
+/* Input Fields */
+.form-control {
+    border-radius: 12px;
+    padding: 10px 14px;
+    border: 1px solid #dcdcdc;
+    transition: 0.2s;
+}
+
+.form-control:focus {
+    border-color: #2d5be3;
+    box-shadow: 0 0 0 3px rgba(45, 91, 227, 0.15);
+}
+
+/* Titles */
+h1, h2, h3 {
+    font-weight: 700;
+    color: #1d1d1d;
+    letter-spacing: -0.5px;
+}
+
+/* Table */
+.table {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table thead {
+    background: #eef2ff;
+    font-weight: 600;
+}
+
+.table tbody tr {
+    transition: 0.15s;
+}
+
+.table tbody tr:hover {
+    background: #f7f9ff;
+}
+
+/* Footer */
+footer {
+    margin-top: 40px;
+    padding: 20px 0;
+    background: #ffffff;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+}

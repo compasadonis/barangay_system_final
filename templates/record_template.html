@@ -5,13 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #e8f0ff;
+        }
+        .navbar {
+            background: linear-gradient(90deg, #0a2a66, #154cdb);
+        }
+        .btn-primary {
+            background-color: #154cdb;
+            border-color: #154cdb;
+        }
+        .btn-primary:hover {
+            background-color: #0a2a66;
+            border-color: #0a2a66;
+        }
+        .card-header {
+            background: #154cdb;
+            color: white;
+        }
+        .table-dark {
+            background: #0a2a66 !important;
+        }
+        .badge.bg-success { background-color: #154cdb !important; }
+        .badge.bg-danger { background-color: #b30000 !important; }
+    </style>
 </head>
 <body>
 
-<!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
-        <a class="navbar-brand" href="{{ url_for('index') }}">Barangay System</a>
+        <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">Barangay System</a>
         <div class="navbar-nav ms-auto">
             <a class="nav-link" href="{{ url_for('index') }}">Dashboard</a>
             <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
@@ -21,7 +46,6 @@
 
 <div class="container mt-4">
 
-    <!-- FLASH MESSAGES -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -33,82 +57,53 @@
         {% endif %}
     {% endwith %}
 
-    <!-- PAGE HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>{{ title }} — Total: {{ records|length }}</h1>
+        <h1 class="fw-bold text-center text-dark">{{ title }} — Total: {{ records|length }}</h1>
         <div>
-            <a href="{{ url_for('print_view', rtype=route_name, month=month, year=year) }}" class="btn btn-info">Print View</a>
-            <a href="{{ url_for('print_view', rtype=route_name, month=month, year=year, export='csv') }}" class="btn btn-success">Export CSV</a>
+            <a href="{{ url_for('print_view', rtype=route_name) }}" class="btn btn-info">Print View</a>
         </div>
     </div>
 
-    <!-- SEARCH & FILTER -->
-    <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0">Search & Filter</h5></div>
-        <div class="card-body">
-            <form method="GET">
-                <div class="row">
-                    <div class="col-md-4">
-                        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search...">
-                    </div>
-
-                    <div class="col-md-2">
-                        <select name="month" class="form-control">
-                            <option value="">All Months</option>
-                            {% for i in range(1,13) %}
-                                <option value="{{ i }}" {% if month|string == i|string %}selected{% endif %}>
-                                    {{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i-1] }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="col-md-2">
-                        <select name="year" class="form-control">
-                            <option value="">All Years</option>
-                            {% for y in range(2020,2031) %}
-                                <option value="{{ y }}" {% if year|string == y|string %}selected{% endif %}>{{ y }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary">Apply</button>
-                        <a href="{{ url_for('view_' + route_name) }}" class="btn btn-secondary">Clear</a>
-                    </div>
-                </div>
-            </form>
+    <div class="mb-4">
+    <form method="GET">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-8">
+                <input type="text" name="q" value="{{ q }}" class="form-control rounded-pill shadow-sm px-3"
+                       style="border: 2px solid #154cdb;" placeholder="Search...">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100 rounded-pill">Search</button>
+            </div>
+            <div class="col-md-2">
+                <a href="{{ url_for('view_' + route_name) }}" class="btn btn-secondary w-100 rounded-pill">Clear</a>
+            </div>
         </div>
-    </div>
+    </form>
+</div>
 
-    <!-- ADD BUTTON -->
-    <div class="text-end mb-3">
+<div class="text-end mb-3">
         <button class="btn btn-primary" id="toggleAddForm">+ Add Record</button>
     </div>
 
-    <!-- ADD FORM -->
-    <div class="card mb-4" id="addRecordForm" style="display:none;">
+    <div class="card mb-4 shadow" id="addRecordForm" style="display:none;">
         <div class="card-header"><h5 class="mb-0">Add New Record</h5></div>
         <div class="card-body">
             <form method="POST">
                 <div class="row">
                     {% for field in fields %}
                         <div class="{{ field.col }} mb-3">
-                            <label class="form-label">{{ field.name|replace('_',' ')|title }}</label>
+                            <label class="form-label fw-bold">{{ field.name.replace('_',' ')|title }}</label>
 
                             {% if field.type == 'select' %}
                                 <select name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}>
-                                    <option value="">Select {{ field.name|replace('_',' ') }}</option>
+                                    <option value="">Select {{ field.name.replace('_',' ')|title }}</option>
                                     {% for option in field.options %}
                                         <option value="{{ option }}">{{ option }}</option>
                                     {% endfor %}
                                 </select>
                             {% else %}
-                                <input type="{{ field.type }}"
-                                       name="{{ field.name }}"
-                                       class="form-control"
-                                       placeholder="{{ field.placeholder }}"
-                                       {% if field.required %}required{% endif %}>
+                                <input type="{{ field.type }}" name="{{ field.name }}" class="form-control"
+                                       placeholder="{{ field.placeholder }}" {% if field.required %}required{% endif %}>
                             {% endif %}
                         </div>
                     {% endfor %}
@@ -119,8 +114,7 @@
         </div>
     </div>
 
-    <!-- TABLE -->
-    <div class="card">
+    <div class="card shadow">
         <div class="card-header"><h5 class="mb-0">Records List</h5></div>
         <div class="card-body">
 
@@ -128,46 +122,48 @@
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
                     <thead class="table-dark">
-                        <tr>
-                            {% for f in fields %}
-                                <th>{{ f.name.replace('_',' ')|title }}</th>
-                            {% endfor %}
+                    <tr>
+                        {% for f in fields %}
+                            <th>{{ f.name.replace('_',' ')|title }}</th>
+                        {% endfor %}
+
+                        {% if 'status' in headers %}
                             <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
+                        {% endif %}
+
+                        <th>Actions</th>
+                    </tr>
                     </thead>
 
                     <tbody>
-                        {% for r in records %}
+                    {% for r in records %}
                         <tr>
                             {% for f in fields %}
                                 <td>{{ r[f.name] }}</td>
                             {% endfor %}
 
-                            <!-- STATUS (Auto display only if model has it) -->
-                            <td>
-                                {% if r.status %}
-                                    <span class="badge bg-{{ 'danger' if r.status=='Expired' else 'success' }}">
-                                        {{ r.status }}
-                                    </span>
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
+                            {% if 'status' in headers %}
+                                <td>
+                                    {% if r.status %}
+                                        <span class="badge bg-{{ 'danger' if r.status=='Expired' else 'success' }}">{{ r.status }}</span>
+                                    {% else %} — {% endif %}
+                                </td>
+                            {% endif %}
 
                             <td>
-                                <a href="{{ url_for('edit_record', rtype=route_name, id=r['id']) }}" class="btn btn-sm btn-warning">Edit</a>
+                                <a href="{{ url_for('edit_record', rtype=route_name, id=r['id']) }}"
+                                   class="btn btn-sm btn-warning">Edit</a>
 
-                                <form action="{{ url_for('delete_record', rtype=route_name, id=r['id']) }}" method="POST" style="display:inline;">
+                                <form action="{{ url_for('delete_record', rtype=route_name, id=r['id']) }}"
+                                      method="POST" style="display:inline;">
                                     <button class="btn btn-sm btn-danger" onclick="return confirm('Delete record?')">Delete</button>
                                 </form>
                             </td>
                         </tr>
-                        {% endfor %}
+                    {% endfor %}
                     </tbody>
                 </table>
             </div>
-
             {% else %}
                 <div class="alert alert-info">No records found.</div>
             {% endif %}

@@ -1,16 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row justify-content-center">
+
+<div class="row justify-content-center mt-4">
   <div class="col-md-5">
-    <div class="card card-compact p-4">
-      <h4 class="mb-3">Login</h4>
-      <form method="post">
-        <div class="mb-2"><input name="username" class="form-control" placeholder="Username" required></div>
-        <div class="mb-2"><input name="password" type="password" class="form-control" placeholder="Password" required></div>
-        <div><button class="btn btn-primary">Login</button></div>
+
+    <div class="card shadow-sm border-0 p-4" style="border-radius:18px;">
+      <h3 class="fw-bold mb-3 text-center text-dark">Login</h3>
+
+      <form method="post" class="mt-2">
+
+        <div class="mb-3">
+          <input name="username" 
+                 class="form-control form-control-lg" 
+                 style="border-radius:12px;" 
+                 placeholder="Username" 
+                 required>
+        </div>
+
+        <div class="mb-3">
+          <input name="password" 
+                 type="password" 
+                 class="form-control form-control-lg" 
+                 style="border-radius:12px;" 
+                 placeholder="Password" 
+                 required>
+        </div>
+
+        <button class="btn btn-primary w-100 py-2" style="border-radius:12px;">
+          Login
+        </button>
+
       </form>
-      <div class="mt-3 small text-muted">Default: captain/captain123 (admin), secretary/secretary123 (staff)</div>
+
+      <p class="mt-3 small text-muted text-center">
+        Default Accounts: <br>
+        captain / captain123 (Admin) <br>
+        secretary / secretary123 (Staff)
+      </p>
+
     </div>
+
   </div>
 </div>
+
 {% endblock %}
