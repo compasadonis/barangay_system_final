@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import date
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -15,9 +15,9 @@ class BarangayID(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
-    phone_number = db.Column(db.String(50))            # ✅ ADDED
-    gender = db.Column(db.String(20))                  # ✅ ADDED
-    registered_voter = db.Column(db.String(5))         # Yes/No
+    phone_number = db.Column(db.String(50))
+    gender = db.Column(db.String(20))
+    registered_voter = db.Column(db.String(5))
     nonreg_proof = db.Column(db.String(300))
     birthday = db.Column(db.Date)
     purpose = db.Column(db.String(300))
@@ -29,7 +29,7 @@ class Clearance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
-    phone_number = db.Column(db.String(50))            # ✅ ADDED
+    phone_number = db.Column(db.String(50))
     birthday = db.Column(db.Date)
     birthplace = db.Column(db.String(200))
     gender = db.Column(db.String(20))
@@ -43,7 +43,7 @@ class Indigency(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
-    gender = db.Column(db.String(20))                  # ✅ ADDED
+    gender = db.Column(db.String(20))
     purpose = db.Column(db.String(300))
     status = db.Column(db.String(50))
     date_issued = db.Column(db.Date)
@@ -67,6 +67,15 @@ class FirstJobSeeker(db.Model):
     name = db.Column(db.String(200), nullable=False)
     address = db.Column(db.String(300))
     date_of_birth = db.Column(db.Date)
-    gender = db.Column(db.String(20))                  # ✅ ADDED
+    gender = db.Column(db.String(20))
     length_of_residency = db.Column(db.Integer)
     date_issued = db.Column(db.Date)
+
+
+class ActivityLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user = db.Column(db.String(200), nullable=False)
+    action = db.Column(db.String(100), nullable=False)
+    table_name = db.Column(db.String(100), nullable=False)
+    record_id = db.Column(db.Integer)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

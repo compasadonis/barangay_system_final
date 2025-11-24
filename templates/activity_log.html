@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h3 class="fw-bold mb-4">Activity Log</h3>
+
+<table class="table table-bordered table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Table</th>
+            <th>Record</th>
+            <th>Timestamp</th>
+        </tr>
+    </thead>
+
+    <tbody>
+    {% for log in logs %}
+        <tr>
+            <td>{{ log.id }}</td>
+            <td>{{ log.user }}</td>
+            <td>{{ log.action }}</td>
+
+            <!-- Nicely formatted table name -->
+            <td>
+                {% set pretty = {
+                    "barangay_id": "Barangay ID",
+                    "clearance": "Clearance",
+                    "indigency": "Indigency",
+                    "good_moral": "Good Moral",
+                    "firstjob": "First Job Seeker"
+                } %}
+
+                {{ pretty.get(log.table_name, log.table_name.replace('_', ' ').title()) }}
+            </td>
+
+            <!-- RECORD: Show name only -->
+            <td>
+                {{ log.record_name }}
+            </td>
+
+            <td>{{ log.timestamp.strftime("%B %d, %Y %I:%M %p") }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}
