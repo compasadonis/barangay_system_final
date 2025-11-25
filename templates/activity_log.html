@@ -3,8 +3,22 @@
 
 <h3 class="fw-bold mb-4">Activity Log</h3>
 
-<table class="table table-bordered table-hover">
-    <thead class="table-dark">
+<!-- SEARCH BAR -->
+<form method="get" class="row mb-3">
+    <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="Search user, action, table, record..." value="{{ request.args.get('q', '') }}">
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary w-100">Search</button>
+    </div>
+</form>
+
+<!-- EXPORT TO EXCEL BUTTON -->
+<a href="/export-logs-excel" class="btn btn-success mb-3">Export to Excel</a>
+
+<div class="table-responsive">
+<table class="table table-bordered table-hover align-middle">
+    <thead class="table-dark text-center">
         <tr>
             <th>ID</th>
             <th>User</th>
@@ -15,35 +29,70 @@
         </tr>
     </thead>
 
+    {% set pretty = {
+        "barangay_id": "Barangay ID",
+        "clearance": "Clearance",
+        "indigency": "Indigency",
+        "good_moral": "Good Moral",
+        "first_job_seeker": "First Job Seeker"
+    } %}
+
     <tbody>
     {% for log in logs %}
         <tr>
-            <td>{{ log.id }}</td>
+            <td class="text-center">{{ log.id }}</td>
             <td>{{ log.user }}</td>
-            <td>{{ log.action }}</td>
 
-            <!-- Nicely formatted table name -->
-            <td>
-                {% set pretty = {
-                    "barangay_id": "Barangay ID",
-                    "clearance": "Clearance",
-                    "indigency": "Indigency",
-                    "good_moral": "Good Moral",
-                    "firstjob": "First Job Seeker"
-                } %}
-
-                {{ pretty.get(log.table_name, log.table_name.replace('_', ' ').title()) }}
+            <td class="text-center">
+                {% if log.action == "ADD" %}
+                    <span class="badge bg-success">ADD</span>
+                {% elif log.action == "UPDATE" %}
+                    <span class="badge bg-warning text-dark">UPDATE</span>
+                {% elif log.action == "DELETE" %}
+                    <span class="badge bg-danger">DELETE</span>
+                {% else %}
+                    <span class="badge bg-secondary">{{ log.action }}</span>
+                {% endif %}
             </td>
 
-            <!-- RECORD: Show name only -->
-            <td>
-                {{ log.record_name }}
-            </td>
-
+            <td>{{ pretty.get(log.table_name, log.table_name.replace('_', ' ').title()) }}</td>
+            <td>{{ log.record_name }}</td>
             <td>{{ log.timestamp.strftime("%B %d, %Y %I:%M %p") }}</td>
         </tr>
     {% endfor %}
     </tbody>
 </table>
+</div>
+
+<!-- Pagination -->
+<nav>
+    <ul class="pagination justify-content-center">
+
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.args.get('q', '') }}">
+                    Previous
+                </a>
+            </li>
+        {% endif %}
+
+        {% for num in range(1, page_obj.num_pages + 1) %}
+            <li class="page-item {% if num == page_obj.page %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}&q={{ request.args.get('q', '') }}">
+                    {{ num }}
+                </a>
+            </li>
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.args.get('q', '') }}">
+                    Next
+                </a>
+            </li>
+        {% endif %}
+
+    </ul>
+</nav>
 
 {% endblock %}

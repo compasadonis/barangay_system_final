@@ -345,7 +345,38 @@ def create_app():
         if session.get("role") not in ("admin", "staff"):
             return redirect(url_for("auth.login"))
 
-        logs = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).all()
+        from sqlalchemy import or_
+
+        # -------------------------------------
+        # Search filter
+        # -------------------------------------
+        q = request.args.get("q", "").strip()
+        base_query = ActivityLog.query
+
+        if q:
+            base_query = base_query.filter(
+                or_(
+                    ActivityLog.user.ilike(f"%{q}%"),
+                    ActivityLog.action.ilike(f"%{q}%"),
+                    ActivityLog.table_name.ilike(f"%{q}%")
+                )
+            )
+
+        # -------------------------------------
+        # Pagination
+        # -------------------------------------
+        page = int(request.args.get("page", 1))
+        per_page = 10
+        total_logs = base_query.count()
+
+        logs = base_query.order_by(ActivityLog.timestamp.desc()) \
+            .offset((page - 1) * per_page) \
+            .limit(per_page) \
+            .all()
+
+        # -------------------------------------
+        # Fix timezone + record names
+        # -------------------------------------
         gmt8 = timezone(timedelta(hours=8))
 
         table_map = {
@@ -357,22 +388,132 @@ def create_app():
         }
 
         for log in logs:
+
+            # Timestamp fix
             if log.timestamp:
-                # Kung naive datetime, i-assume UTC
                 if log.timestamp.tzinfo is None:
                     log.timestamp = log.timestamp.replace(tzinfo=timezone.utc)
-                # Convert sa UTC+8
                 log.timestamp = log.timestamp.astimezone(gmt8)
 
+            # Attach record name
             Model = table_map.get(log.table_name)
             if Model and log.record_id:
-                record = Model.query.get(log.record_id)
-                log.record_name = record.name if record else "Record not found"
+                record = db.session.get(Model, log.record_id)
+                log.record_name = getattr(record, "name", "Record not found") if record else "Record not found"
             else:
                 log.record_name = "Record not found"
 
-        return render_template("activity_log.html", logs=logs)
+        # -------------------------------------
+        # Pagination Class
+        # -------------------------------------
+        class PageObj:
+            def __init__(self, page, per_page, total):
+                self.page = page
+                self.per_page = per_page
+                self.total = total
 
+            @property
+            def has_previous(self):
+                return self.page > 1
+
+            @property
+            def has_next(self):
+                return self.page * self.per_page < self.total
+
+            @property
+            def previous_page_number(self):
+                return self.page - 1
+
+            @property
+            def next_page_number(self):
+                return self.page + 1
+
+            @property
+            def num_pages(self):
+                from math import ceil
+                return ceil(self.total / self.per_page)
+
+        page_obj = PageObj(page, per_page, total_logs)
+
+        return render_template(
+            "activity_log.html",
+            logs=logs,
+            page_obj=page_obj
+        )
+
+    # -------------------------------------------------------
+    # EXPORT LOGS TO EXCEL
+    # -------------------------------------------------------
+    @app.route("/export-logs-excel")
+    def export_logs_excel():
+        from openpyxl import Workbook
+        import io
+        from flask import send_file
+
+        logs = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).all()
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Activity Logs"
+
+        ws.append(["ID", "User", "Action", "Table", "Record", "Timestamp"])
+
+        table_map = {
+            "barangay_id": BarangayID,
+            "clearance": Clearance,
+            "indigency": Indigency,
+            "good_moral": GoodMoral,
+            "first_job_seeker": FirstJobSeeker
+        }
+
+        for log in logs:
+
+            # Fix timestamp
+            ts = ""
+            if log.timestamp:
+                if log.timestamp.tzinfo is None:
+                    log.timestamp = log.timestamp.replace(tzinfo=timezone.utc)
+                ts = log.timestamp.astimezone(
+                    timezone(timedelta(hours=8))
+                ).strftime("%Y-%m-%d %H:%M:%S")
+
+            # Resolve record name
+            Model = table_map.get(log.table_name)
+            if Model and log.record_id:
+                record = db.session.get(Model, log.record_id)
+                record_name = getattr(record, "name", "") if record else ""
+            else:
+                record_name = ""
+
+            ws.append([
+                log.id,
+                log.user,
+                log.action,
+                log.table_name,
+                record_name,
+                ts
+            ])
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="activity_logs.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    
+    @app.route("/system_settings")
+    def system_settings():
+        return render_template("system_settings.html")
+    
+
+
+
+    
+    
 
     return app
 

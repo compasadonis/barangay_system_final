@@ -19,20 +19,39 @@
         background-color: #154cdb;
         border-color: #154cdb;
         border-radius: 50px;
-        padding: 10px 0;
+        padding: 10px 20px;
     }
     .btn-primary:hover {
         background-color: #0a2a66;
         border-color: #0a2a66;
     }
+    .btn-secondary-custom {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        border-radius: 50px;
+        padding: 10px 20px;
+    }
+    .btn-secondary-custom:hover {
+        background-color: #565e64;
+        border-color: #565e64;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="fw-bold">Admin Dashboard</h3>
-    <a href="{{ url_for('activity_log_view') }}" class="btn btn-primary">
-        View Activity Log
+
+    <div class="d-flex">
+        <a href="{{ url_for('activity_log_view') }}" class="btn btn-primary">
+            View Activity Log
+        </a>
+
+    <a href="{{ url_for('system_settings') }}" class="btn btn-secondary-custom ms-2">
+        System Settings
     </a>
+
+    </div>
 </div>
+
 
 <div class="row g-4">
 

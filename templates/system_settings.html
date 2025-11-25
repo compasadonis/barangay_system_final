@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+    .settings-card {
+        border-radius: 20px;
+        background: #ffffff;
+        transition: 0.2s ease;
+    }
+    .settings-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.15) !important;
+    }
+    h3.fw-bold {
+        text-align: center;
+        color: #0a2a66;
+    }
+    .btn-primary {
+        background-color: #154cdb;
+        border-color: #154cdb;
+        border-radius: 50px;
+        padding: 10px 0;
+    }
+    .btn-primary:hover {
+        background-color: #0a2a66;
+        border-color: #0a2a66;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">System Settings</h3>
+
+    <a href="{{ url_for('activity_log_view') }}" class="btn btn-primary">
+        View Activity Log
+    </a>
+</div>
+
+<div class="row g-4">
+
+    <!-- Account Settings -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 p-4 settings-card">
+            <h5 class="fw-bold mb-1 text-primary">Account Settings</h5>
+            <p class="text-muted small mb-3">Manage your login & personal details.</p>
+
+            <a href="{{ url_for('account_settings') }}" class="btn btn-primary mt-3 w-100">
+                Open
+            </a>
+        </div>
+    </div>
+
+    <!-- Backup & Recovery -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 p-4 settings-card">
+            <h5 class="fw-bold mb-1 text-primary">Backup & Recovery</h5>
+            <p class="text-muted small mb-3">Backup system data & recover files.</p>
+
+            <a href="{{ url_for('backup_recovery') }}" class="btn btn-primary mt-3 w-100">
+                Open
+            </a>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
