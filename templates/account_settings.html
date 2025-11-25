@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<style>
+.card-rounded { border-radius: 12px; }
+.modal-input { max-width: 420px; }
+.table-actions .btn { margin-right: 6px; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">Account Settings</h3>
+
+    <div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="bi bi-person-plus"></i> Add User
+        </button>
+    </div>
+</div>
+
+<div class="card card-rounded shadow-sm p-3 mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th class="text-center" style="width:260px">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users %}
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.role }}</td>
+
+                        <td class="text-center table-actions">
+                            
+                            <!-- RESET PASSWORD -->
+                            <form method="POST" action="{{ url_for('reset_user_password', user_id=user.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-warning"
+                                    onclick="return confirm('Reset password for {{ user.username }}?')">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset
+                                </button>
+                            </form>
+
+                            <!-- CHANGE PASSWORD (ADMIN MANUAL CHANGE) -->
+                            <button class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#changePwdForModal"
+                                data-username="{{ user.username }}"
+                                data-userid="{{ user.id }}">
+                                <i class="bi bi-pencil"></i> Change
+                            </button>
+
+                            <!-- DELETE USER -->
+                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-danger"
+                                    onclick="return confirm('Delete user {{ user.username }}? This cannot be undone.')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No users found.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="POST" action="{{ url_for('add_user') }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Add User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3 modal-input">
+          <label class="form-label">Username</label>
+          <input name="username" class="form-control" required>
+        </div>
+
+        <div class="mb-3 modal-input">
+          <label class="form-label">Password</label>
+          <input name="password" type="password" class="form-control" required>
+        </div>
+
+        <div class="mb-3 modal-input">
+          <label class="form-label">Role</label>
+          <select name="role" class="form-select">
+            <option value="admin">admin</option>
+            <option value="staff" selected>staff</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD FOR SPECIFIC USER (ADMIN) -->
+<div class="modal fade" id="changePwdForModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="POST" id="changePwdForForm">
+      <div class="modal-header">
+        <h5 class="modal-title">Change Password for <span id="cp-username"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <input type="hidden" name="user_id" id="cp-userid">
+
+        <div class="mb-3 modal-input">
+          <label class="form-label">New Password</label>
+          <input id="cp-newpwd" type="password" class="form-control" required>
+        </div>
+
+        <div class="mb-3 modal-input">
+          <label class="form-label">Confirm Password</label>
+          <input id="cp-confirmpwd" type="password" class="form-control" required>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cp-submit">Change Password</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    var changeModal = document.getElementById('changePwdForModal');
+
+    changeModal.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        var username = btn.getAttribute('data-username');
+        var userid = btn.getAttribute('data-userid');
+
+        document.getElementById('cp-username').textContent = username;
+        document.getElementById('cp-userid').value = userid;
+
+        document.getElementById('cp-newpwd').value = '';
+        document.getElementById('cp-confirmpwd').value = '';
+    });
+
+    document.getElementById('cp-submit').addEventListener('click', function () {
+        var newpwd = document.getElementById('cp-newpwd').value;
+        var conf = document.getElementById('cp-confirmpwd').value;
+        var username = document.getElementById('cp-username').textContent;
+
+        if (newpwd !== conf) {
+            alert("Passwords do not match!");
+            return;
+        }
+
+        var f = document.createElement('form');
+        f.method = 'POST';
+        f.action = "{{ url_for('update_password') }}";
+
+        f.innerHTML = `
+            <input type="hidden" name="username" value="${username}">
+            <input type="hidden" name="new_password" value="${newpwd}">
+            <input type="hidden" name="confirm_password" value="${conf}">
+        `;
+
+        document.body.appendChild(f);
+        f.submit();
+    });
+
+});
+</script>
+
+{% endblock %}
