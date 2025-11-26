@@ -6,6 +6,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import generate_password_hash
 from sqlalchemy import or_, create_engine
 
+import io
+from openpyxl import Workbook
+
+
 from models import db, BarangayID, Clearance, Indigency, GoodMoral, FirstJobSeeker, User, ActivityLog
 
 from auth import bp as auth_bp
@@ -121,7 +125,7 @@ def generate_empty_template():
     print("empty_template.db created successfully at:", TEMPLATE_DB)
 
 # ---------------------------
-# Initialize DB defaults (users)
+# Initialize DB defaults 
 # ---------------------------
 def init_db(app):
     with app.app_context():
@@ -227,7 +231,7 @@ def create_app():
                         flash(f"'{rf.replace('_',' ').title()}' is required!", "danger")
                         return redirect(request.url)
 
-                # Prevent duplicate names (if model has name field)
+
                 name = request.form.get("name")
                 if name and Model.query.filter_by(name=name).first():
                     flash("This person already exists in the records!", "danger")
@@ -236,7 +240,6 @@ def create_app():
                 obj = Model()
                 data = request.form.to_dict()
 
-                # Auto-handle field types
                 for col in Model.__table__.columns:
                     colname = col.name
                     if colname == "id":
@@ -305,7 +308,7 @@ def create_app():
                 if text_cols:
                     qry = qry.filter(or_(*[col.ilike(like) for col in text_cols]))
 
-            # Filter by month/year for documents with date_issued
+
             if month and year and "date_issued" in Model.__table__.columns.keys():
                 qry = qry.filter(
                     db.func.strftime("%m", Model.date_issued) == f"{int(month):02d}",
@@ -314,7 +317,6 @@ def create_app():
 
             records_orm = qry.order_by(Model.id.desc()).all()
 
-            # Auto-calc status if model has date_issued
             today = datetime.utcnow().date()
             for r in records_orm:
                 if hasattr(r, "date_issued") and r.date_issued:
@@ -329,7 +331,7 @@ def create_app():
             fields = make_fields_from_model(Model)
 
             # ---------------------------
-            # PAGINATION (FINAL FIX)
+            # PAGINATION
             # ---------------------------
             page = request.args.get("page", 1, type=int)
             per_page = 10
@@ -564,9 +566,6 @@ def create_app():
     # ---------------------------
     @app.route("/export-logs-excel")
     def export_logs_excel():
-        from openpyxl import Workbook
-        import io
-
         logs = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).all()
 
         wb = Workbook()
@@ -588,7 +587,9 @@ def create_app():
             if log.timestamp:
                 if log.timestamp.tzinfo is None:
                     log.timestamp = log.timestamp.replace(tzinfo=timezone.utc)
-                ts = log.timestamp.astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+                ts = log.timestamp.astimezone(
+                    timezone(timedelta(hours=8))
+                ).strftime("%Y-%m-%d %H:%M:%S")
 
             Model = table_map.get(log.table_name)
             if Model and log.record_id:
@@ -610,12 +611,16 @@ def create_app():
         wb.save(output)
         output.seek(0)
 
+        # ADD DATE HERE
+        filename = f"activity_logs_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+
         return send_file(
             output,
             as_attachment=True,
-            download_name="activity_logs.xlsx",
+            download_name=filename,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
 
     @app.route("/system_settings")
     def system_settings():
@@ -808,7 +813,6 @@ def create_app():
 
             meta = db.metadata
 
-            # clear all other tables
             for table in reversed(meta.sorted_tables):
                 if table.name.lower() not in protected_tables:
                     db.session.execute(table.delete())
