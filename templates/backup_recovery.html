@@ -11,10 +11,12 @@
         transform: translateY(-5px);
         box-shadow: 0 6px 18px rgba(0,0,0,0.15) !important;
     }
+
     h3.fw-bold {
         text-align: center;
         color: #0a2a66;
     }
+
     .btn-primary {
         background-color: #154cdb;
         border-color: #154cdb;
@@ -33,13 +35,15 @@
 
 <h3 class="fw-bold mb-4">Backup & Recovery</h3>
 
-<div class="row g-4">
+<div class="row g-4 justify-content-center">
 
     <!-- Backup Database -->
     <div class="col-md-4">
         <div class="card shadow-sm border-0 p-4 settings-card">
             <h5 class="fw-bold mb-1 text-primary">Backup Database</h5>
-            <p class="text-muted small mb-3">Download a full backup of your barangay database.</p>
+            <p class="text-muted small mb-3">
+                Download a full backup of your barangay database.
+            </p>
 
             <a href="{{ url_for('backup_database') }}" class="btn btn-primary mt-3 w-100">
                 Download Backup
@@ -51,7 +55,9 @@
     <div class="col-md-4">
         <div class="card shadow-sm border-0 p-4 settings-card">
             <h5 class="fw-bold mb-1 text-primary">Restore Database</h5>
-            <p class="text-muted small mb-3">Upload a .db file to restore the system.</p>
+            <p class="text-muted small mb-3">
+                Upload a .db file and restore your data safely.
+            </p>
 
             <form action="{{ url_for('restore_database') }}" method="POST" enctype="multipart/form-data">
                 <input type="file" name="db_file" class="form-control mb-3" required>
@@ -60,15 +66,17 @@
         </div>
     </div>
 
-    <!-- Restore to Default -->
+    <!-- System Reset -->
     <div class="col-md-4">
         <div class="card shadow-sm border-0 p-4 settings-card">
             <h5 class="fw-bold mb-1 text-danger">Reset Barangay System</h5>
-            <p class="text-muted small mb-3">Reset the system to a clean, empty database.</p>
+            <p class="text-muted small mb-3">
+                Reset the system to a clean state. Users will be preserved.
+            </p>
 
             <form action="{{ url_for('reset_database') }}" method="POST">
                 <button class="btn btn-danger w-100"
-                        onclick="return confirm('This will wipe all data! Proceed?')">
+                        onclick="return confirm('WARNING: This will wipe ALL data except users! Continue?')">
                     Reset System
                 </button>
             </form>

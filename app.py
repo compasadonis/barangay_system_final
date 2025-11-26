@@ -1,4 +1,3 @@
-# app.py (copy-paste ready)
 import shutil
 import os
 import csv
@@ -7,10 +6,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import generate_password_hash
 from sqlalchemy import or_, create_engine
 
-# Import your models (you already provided models.py)
 from models import db, BarangayID, Clearance, Indigency, GoodMoral, FirstJobSeeker, User, ActivityLog
 
-# If you have an auth blueprint and config file (as before)
 from auth import bp as auth_bp
 from config import Config
 
@@ -152,30 +149,28 @@ def init_db(app):
 # ---------------------------
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
-    # set config and database uri
+
     app.config.from_object(Config)
-    # ensure SQLALCHEMY_DATABASE_URI points to our DB_PATH if not set in Config
+
     if not app.config.get("SQLALCHEMY_DATABASE_URI"):
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + DB_PATH
     app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
 
-    # attach models' db to app
+
     db.init_app(app)
 
-    # Ensure template DB exists before any reset attempt
     generate_empty_template()
 
-    # initialize actual db and default users
     init_db(app)
 
-    # Register auth blueprint if present
+
     try:
         app.register_blueprint(auth_bp)
     except Exception:
-        # If auth_bp isn't configured, continue (so file is still usable)
+
         pass
 
-    # make getattr available in jinja if templates use it
+
     app.jinja_env.globals["getattr"] = getattr
 
     # ---------------------------
@@ -211,20 +206,28 @@ def create_app():
             return redirect(url_for("auth.login"))
         return render_template("dashboard_secretary.html")
 
-    # ---------------------------
+    # -------------------------------------------------------
     # Generic register_routes for modules
-    # ---------------------------
+    # -------------------------------------------------------
     def register_routes(prefix, Model, template, title):
         endpoint_name = f"view_{prefix}"
 
         def view_func():
+            # ---------------------------
+            # POST: Create Record
+            # ---------------------------
             if request.method == "POST":
-                required_fields = [c.name for c in Model.__table__.columns if not c.nullable and c.name != "id"]
+                required_fields = [
+                    c.name for c in Model.__table__.columns
+                    if not c.nullable and c.name != "id"
+                ]
+
                 for rf in required_fields:
                     if not request.form.get(rf):
                         flash(f"'{rf.replace('_',' ').title()}' is required!", "danger")
                         return redirect(request.url)
 
+                # Prevent duplicate names (if model has name field)
                 name = request.form.get("name")
                 if name and Model.query.filter_by(name=name).first():
                     flash("This person already exists in the records!", "danger")
@@ -233,12 +236,15 @@ def create_app():
                 obj = Model()
                 data = request.form.to_dict()
 
+                # Auto-handle field types
                 for col in Model.__table__.columns:
                     colname = col.name
                     if colname == "id":
                         continue
+
                     val = data.get(colname)
 
+                    # Convert dates
                     if val and column_is_date(col):
                         try:
                             val = datetime.strptime(val, "%Y-%m-%d").date()
@@ -248,9 +254,10 @@ def create_app():
                             except:
                                 val = None
 
+                    # Convert numeric
                     if val and column_is_numeric(col):
                         try:
-                            if col.type.__class__.__name__.lower() in ("integer","bigint","smallint"):
+                            if col.type.__class__.__name__.lower() in ("integer", "bigint", "smallint"):
                                 val = int(val)
                             else:
                                 val = float(val)
@@ -259,27 +266,46 @@ def create_app():
 
                     setattr(obj, colname, val)
 
+                # Default status
                 if hasattr(obj, "status") and not obj.status:
                     obj.status = "Valid"
 
                 db.session.add(obj)
                 db.session.commit()
-                log_activity(session.get("username"), "CREATE", Model.__tablename__ or prefix, getattr(obj, "id", None))
-                flash(f"{title} created!", "success")
+
+                log_activity(
+                    session.get("username"),
+                    "CREATE",
+                    Model.__tablename__ or prefix,
+                    getattr(obj, "id", None)
+                )
+
+                flash(f"{title} created successfully!", "success")
                 return redirect(request.url)
 
-            # GET
+            # ---------------------------
+            # GET: Fetch Records
+            # ---------------------------
             q = request.args.get("q", "").strip()
             month = request.args.get("month", "")
             year = request.args.get("year", "")
 
             qry = Model.query
+
+            # Search
             if q:
                 like = f"%{q}%"
-                text_cols = [getattr(Model, c.name) for c in Model.__table__.columns if hasattr(c.type,"length") or c.type.__class__.__name__.lower() in ("text","varchar","string")]
+                text_cols = [
+                    getattr(Model, c.name)
+                    for c in Model.__table__.columns
+                    if hasattr(c.type, "length")
+                    or c.type.__class__.__name__.lower() in ("text", "varchar", "string")
+                ]
+
                 if text_cols:
                     qry = qry.filter(or_(*[col.ilike(like) for col in text_cols]))
 
+            # Filter by month/year for documents with date_issued
             if month and year and "date_issued" in Model.__table__.columns.keys():
                 qry = qry.filter(
                     db.func.strftime("%m", Model.date_issued) == f"{int(month):02d}",
@@ -287,21 +313,63 @@ def create_app():
                 )
 
             records_orm = qry.order_by(Model.id.desc()).all()
+
+            # Auto-calc status if model has date_issued
             today = datetime.utcnow().date()
             for r in records_orm:
-                if hasattr(r,"date_issued") and r.date_issued:
-                    months = 12 if "business" in (getattr(r,"purpose","") or "").lower() else 6
-                    expiry = r.date_issued + timedelta(days=30*months)
-                    if hasattr(r,"status"):
-                        r.status = "Expired" if today>expiry else "Valid"
+                if hasattr(r, "date_issued") and r.date_issued:
+                    months = 12 if "business" in (getattr(r, "purpose", "") or "").lower() else 6
+                    expiry = r.date_issued + timedelta(days=30 * months)
+
+                    if hasattr(r, "status"):
+                        r.status = "Expired" if today > expiry else "Valid"
 
             records = [row_to_dict(r, Model) for r in records_orm]
             headers = model_headers(Model)
             fields = make_fields_from_model(Model)
 
-            return render_template(template, title=title, records=records, q=q, month=month, year=year, route_name=prefix, headers=headers, fields=fields)
+            # ---------------------------
+            # PAGINATION (FINAL FIX)
+            # ---------------------------
+            page = request.args.get("page", 1, type=int)
+            per_page = 10
+            total = len(records)
 
-        app.add_url_rule(f"/{prefix}", endpoint=endpoint_name, view_func=view_func, methods=["GET","POST"])
+            start = (page - 1) * per_page
+            end = start + per_page
+            page_records = records[start:end]
+
+            class PageObj:
+                def __init__(self, page, per_page, total):
+                    self.page = page
+                    self.per_page = per_page
+                    self.total = total
+                    self.pages = (total + per_page - 1) // per_page
+
+            page_obj = PageObj(page, per_page, total)
+
+            # ---------------------------
+            # Render template
+            # ---------------------------
+            return render_template(
+                template,
+                title=title,
+                records=page_records,
+                page_obj=page_obj,
+                q=q,
+                month=month,
+                year=year,
+                route_name=prefix,
+                headers=headers,
+                fields=fields
+            )
+
+        app.add_url_rule(
+            f"/{prefix}",
+            endpoint=endpoint_name,
+            view_func=view_func,
+            methods=["GET", "POST"]
+        )
 
     # register module routes
     register_routes("barangay_id", BarangayID, "barangay_id.html", "Barangay ID")
@@ -403,7 +471,7 @@ def create_app():
         return render_template("printable.html",records=records,title=title,month=month,year=year)
 
     # ---------------------------
-    # Activity Log (paginated)
+    # Activity Log
     # ---------------------------
     @app.route("/activity_log")
     def activity_log_view():
@@ -554,7 +622,7 @@ def create_app():
         return render_template("system_settings.html")
 
     # ---------------------------
-    # Account Settings (users)
+    # Account Settings 
     # ---------------------------
     @app.route("/account_settings")
     def account_settings():
@@ -641,6 +709,13 @@ def create_app():
     # ---------------------------
     # Backup / Restore / Reset
     # ---------------------------
+
+    def get_db_path():
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        if uri.startswith("sqlite:///"):
+            return os.path.abspath(uri.replace("sqlite:///", ""))
+        return None
+
     @app.route("/backup_recovery")
     def backup_recovery():
         if session.get("role") != "admin":
@@ -648,10 +723,11 @@ def create_app():
             return redirect(url_for("index"))
         return render_template("backup_recovery.html")
 
+
     @app.route("/backup_database")
     def backup_database():
         try:
-            db_path = app.config.get("SQLALCHEMY_DATABASE_URI", "").replace("sqlite:///", "")
+            db_path = get_db_path()
 
             if not os.path.exists(db_path):
                 raise FileNotFoundError("Database file not found!")
@@ -665,46 +741,88 @@ def create_app():
             return send_file(backup_file, as_attachment=True)
 
         except Exception as e:
-            flash("Backup failed: " + str(e), "danger")
+            flash(f"Backup failed: {e}", "danger")
             return redirect(url_for("backup_recovery"))
+
 
     @app.route("/restore_database", methods=["POST"])
     def restore_database():
         try:
             file = request.files.get("db_file")
-
             if not file or not file.filename.endswith(".db"):
                 flash("Invalid file!", "danger")
                 return redirect(url_for("backup_recovery"))
 
-            db_path = app.config.get("SQLALCHEMY_DATABASE_URI", "").replace("sqlite:///", "")
-            file.save(db_path)
+            temp_path = "temp_restore.db"
+            file.save(temp_path)
 
-            flash("Database restored!", "success")
+
+            import sqlite3
+
+            backup_conn = sqlite3.connect(temp_path)
+            backup_cursor = backup_conn.cursor()
+
+            live_db_path = get_db_path()
+            live_conn = sqlite3.connect(live_db_path)
+            live_cursor = live_conn.cursor()
+
+            protected_tables = ["user"]
+
+            tables = backup_cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+
+            for (table_name,) in tables:
+                if table_name.lower() in protected_tables:
+                    continue  
+
+                live_cursor.execute(f"DELETE FROM {table_name}")
+
+                rows = backup_cursor.execute(f"SELECT * FROM {table_name}").fetchall()
+
+                if rows:
+                    placeholders = ",".join("?" * len(rows[0]))
+                    live_cursor.executemany(
+                        f"INSERT INTO {table_name} VALUES ({placeholders})", rows
+                    )
+
+            live_conn.commit()
+            backup_conn.close()
+            live_conn.close()
+
+            os.remove(temp_path)
+
+            flash("Database restored successfully! (Users preserved)", "success")
             return redirect(url_for("backup_recovery"))
 
         except Exception as e:
-            flash("Restore failed: " + str(e), "danger")
+            flash(f"Restore failed: {e}", "danger")
             return redirect(url_for("backup_recovery"))
+
 
     @app.route("/reset_database", methods=["POST"])
     def reset_database():
         try:
-            # ensure template exists
-            if not os.path.exists(TEMPLATE_DB):
-                generate_empty_template()
+            db.session.rollback()   
+            protected_tables = ["user"]  
 
-            db_path = app.config.get("SQLALCHEMY_DATABASE_URI", "").replace("sqlite:///", "")
+            meta = db.metadata
 
-            # copy template over live DB (overwrite)
-            shutil.copy(TEMPLATE_DB, db_path)
+            # clear all other tables
+            for table in reversed(meta.sorted_tables):
+                if table.name.lower() not in protected_tables:
+                    db.session.execute(table.delete())
 
-            flash("System reset successfully!", "warning")
+            db.session.commit()
+
+            flash("System reset successfully! (Users preserved)", "warning")
             return redirect(url_for("backup_recovery"))
 
         except Exception as e:
-            flash("Reset failed: " + str(e), "danger")
+            db.session.rollback()
+            flash(f"Reset failed: {e}", "danger")
             return redirect(url_for("backup_recovery"))
+
 
     return app
 
@@ -713,5 +831,4 @@ def create_app():
 # ---------------------------
 if __name__ == "__main__":
     app = create_app()
-    # debug True for local development — turn off for production
     app.run(debug=True)
