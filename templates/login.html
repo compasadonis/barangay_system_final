@@ -17,13 +17,21 @@
                  required>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-1">
           <input name="password" 
                  type="password" 
                  class="form-control form-control-lg" 
                  style="border-radius:12px;" 
                  placeholder="Password" 
                  required>
+        </div>
+
+        <!-- Forgot Password Link -->
+        <div class="text-end mb-3">
+          <a href="{{ url_for('forgot_password') }}" 
+             class="small text-decoration-none">
+            Forgot Password?
+          </a>
         </div>
 
         <button class="btn btn-primary w-100 py-2" style="border-radius:12px;">

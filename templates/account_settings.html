@@ -24,7 +24,7 @@
                 <tr>
                     <th>Username</th>
                     <th>Role</th>
-                    <th class="text-center" style="width:260px">Actions</th>
+                    <th class="text-center" style="width:200px">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,16 +35,8 @@
                         <td>{{ user.role }}</td>
 
                         <td class="text-center table-actions">
-                            
-                            <!-- RESET PASSWORD -->
-                            <form method="POST" action="{{ url_for('reset_user_password', user_id=user.id) }}" style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-warning"
-                                    onclick="return confirm('Reset password for {{ user.username }}?')">
-                                    <i class="bi bi-arrow-clockwise"></i> Reset
-                                </button>
-                            </form>
 
-                            <!-- CHANGE PASSWORD (ADMIN MANUAL CHANGE) -->
+                            <!-- CHANGE PASSWORD ONLY -->
                             <button class="btn btn-sm btn-outline-primary"
                                 data-bs-toggle="modal"
                                 data-bs-target="#changePwdForModal"
@@ -54,7 +46,9 @@
                             </button>
 
                             <!-- DELETE USER -->
-                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" style="display:inline;">
+                            <form method="POST"
+                                  action="{{ url_for('delete_user', user_id=user.id) }}"
+                                  style="display:inline;">
                                 <button type="submit" class="btn btn-sm btn-danger"
                                     onclick="return confirm('Delete user {{ user.username }}? This cannot be undone.')">
                                     <i class="bi bi-trash"></i> Delete
@@ -111,7 +105,7 @@
   </div>
 </div>
 
-<!-- CHANGE PASSWORD FOR SPECIFIC USER (ADMIN) -->
+<!-- CHANGE PASSWORD MODAL -->
 <div class="modal fade" id="changePwdForModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content" method="POST" id="changePwdForForm">

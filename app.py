@@ -5,26 +5,20 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, send_file
 from werkzeug.security import generate_password_hash
 from sqlalchemy import or_, create_engine
-
 import io
 from openpyxl import Workbook
-
-
+from openpyxl.utils import get_column_letter
 from models import db, BarangayID, Clearance, Indigency, GoodMoral, FirstJobSeeker, User, ActivityLog
-
 from auth import bp as auth_bp
 from config import Config
 
-# ---------------------------
-# Paths & constants
-# ---------------------------
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_DIR = os.path.join(BASE_DIR, "database")
 DB_PATH = os.path.join(DB_DIR, "brgy.db")
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")
 TEMPLATE_DB = os.path.join(BASE_DIR, "empty_template.db")
 
-# Ensure folders exist
 os.makedirs(DB_DIR, exist_ok=True)
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
@@ -98,9 +92,31 @@ def row_to_dict(row, Model):
             out[c.name] = val
     return out
 
+
+def best_display(obj):
+    """
+    Return a readable display for log records.
+    Search priority: name → full_name → username → first_name → resident_name → title → id
+    """
+    for attr in ("name", "full_name", "username", "first_name", "resident_name", "title"):
+        if hasattr(obj, attr) and getattr(obj, attr):
+            return f"{getattr(obj, 'id', None)} - {getattr(obj, attr)}"
+
+    if hasattr(obj, "id"):
+        return str(obj.id)
+
+    return str(obj)
+
 def log_activity(user, action, table_name, record_id=None):
+    """
+    Normalize table_name to lowercase, and store record_id as string.
+    record_id can be an integer ID or a pre-built display string like "12 - Juan Dela Cruz".
+    """
     who = user or session.get("username") or "system"
-    log = ActivityLog(user=who, action=action, table_name=table_name, record_id=record_id)
+    tbl = (table_name or "").lower()
+    # store record_id as string (so we can save "12 - Name" snapshots)
+    rec = record_id if record_id is None else str(record_id)
+    log = ActivityLog(user=who, action=action, table_name=tbl, record_id=rec)
     db.session.add(log)
     db.session.commit()
 
@@ -117,9 +133,8 @@ def generate_empty_template():
 
     print("No empty_template.db found — creating one automatically...")
 
-    # create sqlite file and bind metadata
+
     eng = create_engine(f"sqlite:///{TEMPLATE_DB}")
-    # Use models.db.metadata to create tables on this engine
     db.metadata.create_all(bind=eng)
 
     print("empty_template.db created successfully at:", TEMPLATE_DB)
@@ -160,22 +175,51 @@ def create_app():
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + DB_PATH
     app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
 
-
     db.init_app(app)
 
     generate_empty_template()
 
     init_db(app)
 
-
     try:
         app.register_blueprint(auth_bp)
     except Exception:
-
         pass
 
-
     app.jinja_env.globals["getattr"] = getattr
+
+    # ---------------------------
+    # Forgot Password 
+    # ---------------------------
+    @app.route("/forgot_password", methods=["GET", "POST"])
+    def forgot_password():
+        if request.method == "POST":
+            username = request.form.get("username")
+
+            user = User.query.filter_by(username=username).first()
+            if not user:
+                flash("User not found!", "danger")
+                return redirect(url_for("forgot_password"))
+
+            # Reset password
+            new_password = f"{username}123"
+            user.password = generate_password_hash(new_password)
+            db.session.commit()
+
+            log_activity(
+                session.get("username"),
+                "RESET PASSWORD",
+                "users",
+                user.id
+            )
+
+            flash(f"Password reset to: {new_password}", "success")
+            return redirect(url_for("auth.login"))
+
+        # GET request — fetch all users
+        users = User.query.all()  # <-- Make sure this line is here
+        return render_template("forgot_password.html", users=users)
+
 
     # ---------------------------
     # Routes (dashboard)
@@ -231,7 +275,6 @@ def create_app():
                         flash(f"'{rf.replace('_',' ').title()}' is required!", "danger")
                         return redirect(request.url)
 
-
                 name = request.form.get("name")
                 if name and Model.query.filter_by(name=name).first():
                     flash("This person already exists in the records!", "danger")
@@ -247,7 +290,7 @@ def create_app():
 
                     val = data.get(colname)
 
-                    # Convert dates
+
                     if val and column_is_date(col):
                         try:
                             val = datetime.strptime(val, "%Y-%m-%d").date()
@@ -257,7 +300,6 @@ def create_app():
                             except:
                                 val = None
 
-                    # Convert numeric
                     if val and column_is_numeric(col):
                         try:
                             if col.type.__class__.__name__.lower() in ("integer", "bigint", "smallint"):
@@ -280,7 +322,7 @@ def create_app():
                     session.get("username"),
                     "CREATE",
                     Model.__tablename__ or prefix,
-                    getattr(obj, "id", None)
+                    best_display(obj)
                 )
 
                 flash(f"{title} created successfully!", "success")
@@ -307,7 +349,6 @@ def create_app():
 
                 if text_cols:
                     qry = qry.filter(or_(*[col.ilike(like) for col in text_cols]))
-
 
             if month and year and "date_issued" in Model.__table__.columns.keys():
                 qry = qry.filter(
@@ -405,7 +446,14 @@ def create_app():
                     except: pass
                 setattr(record,col.name,val)
             db.session.commit()
-            log_activity(session.get("username"),"UPDATE",Model.__tablename__ or rtype,id)
+
+            log_activity(
+                session.get("username"),
+                "UPDATE",
+                Model.__tablename__ or rtype,
+                best_display(record)
+            )
+
             flash("Updated successfully!","success")
             return redirect(url_for(f"view_{rtype}"))
         record_dict=row_to_dict(record,Model)
@@ -415,17 +463,32 @@ def create_app():
         return render_template("edit_generic.html",record=record_dict,columns=columns,rtype=rtype,headers=headers,fields=fields)
 
     @app.route("/<rtype>/delete/<int:id>", methods=["POST"])
-    def delete_record(rtype,id):
-        mapping = {"barangay_id":BarangayID,"clearance":Clearance,"indigency":Indigency,"goodmoral":GoodMoral,"firstjob":FirstJobSeeker}
+    def delete_record(rtype, id):
+        mapping = {
+            "barangay_id": BarangayID,
+            "clearance": Clearance,
+            "indigency": Indigency,
+            "goodmoral": GoodMoral,
+            "firstjob": FirstJobSeeker
+        }
         Model = mapping.get(rtype)
         if not Model:
-            flash("Invalid type","danger")
+            flash("Invalid type", "danger")
             return redirect(url_for("index"))
+
         record = Model.query.get_or_404(id)
+
+
+        record_display = best_display(record)
+
+        # delete
         db.session.delete(record)
         db.session.commit()
-        log_activity(session.get("username"),"DELETE",Model.__tablename__ or rtype,id)
-        flash("Record deleted!","success")
+
+        # log with the snapshot display (string) so it persists in the audit trail
+        log_activity(session.get("username"), "DELETE", Model.__tablename__ or rtype, record_display)
+
+        flash("Record deleted!", "success")
         return redirect(url_for(f"view_{rtype}"))
 
     @app.route("/print")
@@ -485,23 +548,28 @@ def create_app():
         q = request.args.get("q", "").strip()
         base_query = ActivityLog.query
 
+
         if q:
             base_query = base_query.filter(
                 or_(
                     ActivityLog.user.ilike(f"%{q}%"),
                     ActivityLog.action.ilike(f"%{q}%"),
-                    ActivityLog.table_name.ilike(f"%{q}%")
+                    ActivityLog.table_name.ilike(f"%{q}%"),
+                    ActivityLog.record_id.ilike(f"%{q}%")
                 )
             )
+
 
         page = int(request.args.get("page", 1))
         per_page = 10
         total_logs = base_query.count()
 
-        logs = base_query.order_by(ActivityLog.timestamp.desc()) \
-            .offset((page - 1) * per_page) \
-            .limit(per_page) \
+        logs = (
+            base_query.order_by(ActivityLog.timestamp.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
             .all()
+        )
 
         gmt8 = timezone(timedelta(hours=8))
 
@@ -509,22 +577,94 @@ def create_app():
             "barangay_id": BarangayID,
             "clearance": Clearance,
             "indigency": Indigency,
+            "goodmoral": GoodMoral,
             "good_moral": GoodMoral,
-            "first_job_seeker": FirstJobSeeker
+            "firstjob": FirstJobSeeker,
+            "first_job_seeker": FirstJobSeeker,
+            "first_job": FirstJobSeeker,
+            "users": User,
+            "user": User
         }
 
+        def resolve_model(table_name):
+            """Match table_name to model even with s/plurals."""
+            if not table_name:
+                return None
+            t = table_name.lower().strip()
+            if t in table_map:
+                return table_map[t]
+            t2 = t.rstrip("s")
+            for key, M in table_map.items():
+                if key.rstrip("s") == t2:
+                    return M
+            return None
+
+        def get_record_display_name(record):
+            """Get readable record name."""
+            if not record:
+                return None
+            for attr in ("name", "full_name", "username", "first_name", "resident_name", "title"):
+                if hasattr(record, attr) and getattr(record, attr):
+                    return getattr(record, attr)
+            if hasattr(record, "id"):
+                return f"ID {record.id}"
+            return None
+
+
         for log in logs:
+
+            # Timestamp → GMT+8
             if log.timestamp:
                 if log.timestamp.tzinfo is None:
                     log.timestamp = log.timestamp.replace(tzinfo=timezone.utc)
                 log.timestamp = log.timestamp.astimezone(gmt8)
 
-            Model = table_map.get(log.table_name)
+            Model = resolve_model(log.table_name)
+
+
+            if log.record_id and not str(log.record_id).isdigit():
+                log.record_name = log.record_id
+                continue
+
+
+            if log.table_name and log.table_name.lower().rstrip("s") == "user":
+
+                if log.record_id:
+                    try:
+                        uid = int(str(log.record_id).split(" ")[0])
+                        user_obj = db.session.get(User, uid)
+                    except:
+                        user_obj = None
+
+                    if user_obj:
+                        log.record_name = f"{user_obj.id} - {user_obj.username}"
+                    else:
+                        # user deleted – still show ID
+                        log.record_name = str(log.record_id)
+                else:
+                    # fallback: show who performed the action (very rare)
+                    log.record_name = log.user
+
+                continue
+
+
             if Model and log.record_id:
-                record = db.session.get(Model, log.record_id)
-                log.record_name = getattr(record, "name", "Record not found") if record else "Record not found"
+                try:
+                    clean_id = int(str(log.record_id).split(" ")[0])
+                    record = db.session.get(Model, clean_id)
+                except:
+                    record = None
+
+                if record:
+                    rn = get_record_display_name(record)
+                    log.record_name = rn if rn else str(log.record_id)
+                else:
+                    # record deleted – still show ID
+                    log.record_name = str(log.record_id)
             else:
-                log.record_name = "Record not found"
+                # fallback
+                log.record_name = str(log.record_id)
+
 
         class PageObj:
             def __init__(self, page, per_page, total):
@@ -574,13 +714,40 @@ def create_app():
 
         ws.append(["ID", "User", "Action", "Table", "Record", "Timestamp"])
 
-        table_map = {
+        # same robust mapping used above
+        table_map_candidates = {
             "barangay_id": BarangayID,
             "clearance": Clearance,
             "indigency": Indigency,
+            "goodmoral": GoodMoral,
             "good_moral": GoodMoral,
-            "first_job_seeker": FirstJobSeeker
+            "firstjob": FirstJobSeeker,
+            "first_job_seeker": FirstJobSeeker,
+            "user": User,
+            "users": User
         }
+
+        def resolve_model(table_name):
+            if not table_name:
+                return None
+            t = table_name.lower()
+            if t in table_map_candidates:
+                return table_map_candidates[t]
+            t_stripped = t.rstrip("s")
+            for key, M in table_map_candidates.items():
+                if key in t or t in key or key.rstrip("s") == t_stripped:
+                    return M
+            return None
+
+        def get_record_display_name_for_export(record):
+            if not record:
+                return ""
+            for attr in ("name", "full_name", "username", "first_name", "title"):
+                if hasattr(record, attr) and getattr(record, attr):
+                    return getattr(record, attr)
+            if hasattr(record, "id"):
+                return str(getattr(record, "id"))
+            return ""
 
         for log in logs:
             ts = ""
@@ -591,10 +758,13 @@ def create_app():
                     timezone(timedelta(hours=8))
                 ).strftime("%Y-%m-%d %H:%M:%S")
 
-            Model = table_map.get(log.table_name)
+            Model = resolve_model(log.table_name)
             if Model and log.record_id:
-                record = db.session.get(Model, log.record_id)
-                record_name = getattr(record, "name", "") if record else ""
+                try:
+                    record = db.session.get(Model, int(log.record_id))
+                except Exception:
+                    record = db.session.get(Model, log.record_id)
+                record_name = get_record_display_name_for_export(record)
             else:
                 record_name = ""
 
@@ -611,7 +781,6 @@ def create_app():
         wb.save(output)
         output.seek(0)
 
-        # ADD DATE HERE
         filename = f"activity_logs_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
 
         return send_file(
@@ -620,7 +789,6 @@ def create_app():
             download_name=filename,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
 
     @app.route("/system_settings")
     def system_settings():
@@ -659,7 +827,7 @@ def create_app():
         db.session.add(new_user)
         db.session.commit()
 
-        log_activity(session.get("username"), "CREATE USER", "users", new_user.id)
+        log_activity(session.get("username"), "CREATE USER", "users", best_display(new_user))
         flash("User created!", "success")
         return redirect(url_for("account_settings"))
 
@@ -681,7 +849,7 @@ def create_app():
         user.password = generate_password_hash(new_password)
         db.session.commit()
 
-        log_activity(session.get("username"), "CHANGE PASSWORD", "users", user.id)
+        log_activity(session.get("username"), "CHANGE PASSWORD", "users", best_display(user))
         flash("Password updated successfully!", "success")
         return redirect(url_for("account_settings"))
 
@@ -694,7 +862,7 @@ def create_app():
         user.password = generate_password_hash("password123")
         db.session.commit()
 
-        log_activity(session.get("username"), "RESET PASSWORD", "users", user_id)
+        log_activity(session.get("username"), "RESET PASSWORD", "users", best_display(user))
         flash(f"Password reset to default: password123", "warning")
         return redirect(url_for("account_settings"))
 
@@ -704,10 +872,15 @@ def create_app():
             return redirect(url_for("index"))
 
         user = User.query.get_or_404(user_id)
+
+
+        user_display = f"{user.id} - {user.username}" if getattr(user, "username", None) else f"{user.id}"
+
         db.session.delete(user)
         db.session.commit()
 
-        log_activity(session.get("username"), "DELETE USER", "users", user_id)
+        # log using table name "users" to match conventions
+        log_activity(session.get("username"), "DELETE USER", "users", user_display)
         flash("User deleted!", "danger")
         return redirect(url_for("account_settings"))
 
@@ -727,7 +900,6 @@ def create_app():
             flash("Admins only!", "danger")
             return redirect(url_for("index"))
         return render_template("backup_recovery.html")
-
 
     @app.route("/backup_database")
     def backup_database():
@@ -749,7 +921,6 @@ def create_app():
             flash(f"Backup failed: {e}", "danger")
             return redirect(url_for("backup_recovery"))
 
-
     @app.route("/restore_database", methods=["POST"])
     def restore_database():
         try:
@@ -760,7 +931,6 @@ def create_app():
 
             temp_path = "temp_restore.db"
             file.save(temp_path)
-
 
             import sqlite3
 
@@ -779,7 +949,7 @@ def create_app():
 
             for (table_name,) in tables:
                 if table_name.lower() in protected_tables:
-                    continue  
+                    continue
 
                 live_cursor.execute(f"DELETE FROM {table_name}")
 
@@ -804,12 +974,11 @@ def create_app():
             flash(f"Restore failed: {e}", "danger")
             return redirect(url_for("backup_recovery"))
 
-
     @app.route("/reset_database", methods=["POST"])
     def reset_database():
         try:
-            db.session.rollback()   
-            protected_tables = ["user"]  
+            db.session.rollback()
+            protected_tables = ["user"]
 
             meta = db.metadata
 
@@ -826,7 +995,6 @@ def create_app():
             db.session.rollback()
             flash(f"Reset failed: {e}", "danger")
             return redirect(url_for("backup_recovery"))
-
 
     return app
 
